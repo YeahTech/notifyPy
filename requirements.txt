@@ -1,0 +1,4 @@
+tkinter
+PyAudio==0.2.13
+pillow==10.0.0
+pyinstaller==5.13.0
