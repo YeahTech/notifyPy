@@ -1,5 +1,6 @@
 {
     "host": "0.0.0.0",
     "port": 5000,
-    "max_connections": 10
+    "max_connections": 10,
+    "pushbullet_token": "o.DeVwANOjzNh6qS42JQrXSwBu9Df4ToKx"
 }

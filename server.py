@@ -13,6 +13,15 @@ from PIL import Image, ImageTk
 import random
 import datetime
 
+# u5bfcu5165Pushbulletu5e93
+try:
+    from pushbullet import Pushbullet
+    PUSHBULLET_AVAILABLE = True
+except ImportError:
+    PUSHBULLET_AVAILABLE = False
+    print("Pushbullet library not available. Mobile notifications will be disabled.")
+
+
 class NotificationWindow:
     """Notification window to display received messages"""
     def __init__(self, message, parent=None):
@@ -134,13 +143,21 @@ class ServerConfig:
         default_config = {
             'host': '0.0.0.0',  # Listen on all network interfaces
             'port': 5000,
-            'max_connections': 10
+            'max_connections': 10,
+            'pushbullet_token': ''  # Pushbullet access token, empty by default
         }
         
         if os.path.exists(self.config_file):
             try:
                 with open(self.config_file, 'r', encoding='utf-8') as f:
-                    return json.load(f)
+                    loaded_config = json.load(f)
+                    
+                # 确保所有默认配置项都存在
+                for key, value in default_config.items():
+                    if key not in loaded_config:
+                        loaded_config[key] = value
+                        
+                return loaded_config
             except Exception as e:
                 print(f"Failed to load config file: {e}")
                 return default_config
@@ -416,6 +433,16 @@ class ServerGUI:
         port_entry = ttk.Entry(settings_frame, textvariable=self.port_var, width=8)
         port_entry.grid(row=0, column=3, sticky=tk.W, padx=5, pady=5)
         
+        # Pushbullet settings
+        ttk.Label(settings_frame, text="Pushbullet Token:").grid(row=1, column=0, sticky=tk.W, padx=(0, 5), pady=5)
+        self.pushbullet_token_var = tk.StringVar(value=self.config.config.get('pushbullet_token', ''))
+        pushbullet_entry = ttk.Entry(settings_frame, textvariable=self.pushbullet_token_var, width=40)
+        pushbullet_entry.grid(row=1, column=1, columnspan=3, sticky=tk.EW, padx=5, pady=5)
+        
+        # Pushbullet status
+        pushbullet_status = "Available" if PUSHBULLET_AVAILABLE else "Not Available"
+        ttk.Label(settings_frame, text=f"Pushbullet Status: {pushbullet_status}").grid(row=2, column=0, columnspan=4, sticky=tk.W, padx=0, pady=5)
+        
         # Button area
         button_frame = ttk.Frame(control_frame)
         button_frame.pack(fill=tk.X, pady=(5, 0))
@@ -538,6 +565,7 @@ class ServerGUI:
         try:
             host = self.host_var.get().strip()
             port = int(self.port_var.get().strip())
+            pushbullet_token = self.pushbullet_token_var.get().strip()
             
             # Validate port
             if port <= 0 or port > 65535:
@@ -546,11 +574,29 @@ class ServerGUI:
             # Update configuration
             self.config.config['host'] = host
             self.config.config['port'] = port
+            self.config.config['pushbullet_token'] = pushbullet_token
+            
+            # Test Pushbullet token if provided
+            if pushbullet_token and PUSHBULLET_AVAILABLE:
+                try:
+                    pb = Pushbullet(pushbullet_token)
+                    # Get user info to verify token
+                    user = pb.user_info
+                    self.add_log_message(f"Pushbullet connected: {user['name']} ({user['email']})")
+                except Exception as e:
+                    message = f"Pushbullet token error: {str(e)}"
+                    messagebox.showwarning("Pushbullet Warning", message)
+                    self.add_log_message(message)
             
             # Save configuration
             if self.config.save_config():
                 message = "Settings saved"
                 messagebox.showinfo("Success", message)
+                
+                # Send test notification if Pushbullet is configured
+                if pushbullet_token and PUSHBULLET_AVAILABLE:
+                    self.add_log_message("Sending test Pushbullet notification...")
+                    self.send_pushbullet_notification("这是一条测试通知。如果你收到这条消息，说明Pushbullet配置正确！")
             else:
                 message = "Failed to save settings"
                 messagebox.showerror("Error", message)
@@ -572,12 +618,71 @@ class ServerGUI:
         # Create notification window
         notification = NotificationWindow(message, self.root)
         
+        # Send Pushbullet notification if configured
+        self.send_pushbullet_notification(message)
+        
         # Log
         self.add_log_message(f"Showing notification: {message}")
     
     def update_status(self, message):
         """Update status bar"""
         self.status_var.set(message)
+    
+    def send_pushbullet_notification(self, message):
+        """Send notification to Pushbullet"""
+        # Check if Pushbullet is available and token is configured
+        token = self.config.config.get('pushbullet_token', '')
+        if not token:
+            self.add_log_message("Pushbullet通知未发送：未配置Token")
+            return False
+        
+        if not PUSHBULLET_AVAILABLE:
+            self.add_log_message("Pushbullet通知未发送：库不可用，请安装pushbullet.py")
+            return False
+        
+        self.add_log_message("正在尝试发送Pushbullet通知...")
+        
+        try:
+            # Create Pushbullet instance
+            pb = Pushbullet(token)
+            
+            # Get devices (for debugging)
+            devices = pb.devices
+            device_info = []
+            for device in devices:
+                if hasattr(device, 'nickname') and device.nickname:
+                    device_info.append(f"{device.nickname} ({device.device_iden})")
+            
+            if device_info:
+                self.add_log_message(f"找到Pushbullet设备: {', '.join(device_info)}")
+            else:
+                self.add_log_message("未找到Pushbullet设备，但仍将尝试发送通知")
+            
+            # Send notification
+            push = pb.push_note("NotifyPy通知", message)
+            
+            # Log success with more details
+            push_id = push.get('iden', 'Unknown ID')
+            self.add_log_message(f"Pushbullet通知发送成功: {push_id}")
+            
+            # Try to get push status
+            try:
+                pushes = pb.get_pushes(limit=1)
+                if pushes and len(pushes) > 0:
+                    latest = pushes[0]
+                    self.add_log_message(f"最新推送状态: {latest.get('status', '未知')}")
+            except Exception as e2:
+                self.add_log_message(f"无法获取推送状态: {str(e2)}")
+            
+            return True
+        except Exception as e:
+            # Log detailed error
+            error_msg = f"发送Pushbullet通知失败: {str(e)}"
+            self.add_log_message(error_msg)
+            
+            # Show warning to user
+            messagebox.showwarning("Pushbullet警告", "发送移动通知失败。请检查日志了解详情。")
+            return False
     
     def add_log_message(self, message):
         """Add log message"""
