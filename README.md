@@ -45,13 +45,66 @@ python send.py config --ip 192.168.1.100 --port 5000
 python send.py show
 ```
 
+#### 执行命令并通知
+使用notify.py可以执行命令，并在命令完成后发送通知：
+```
+python notify.py cp -r source_dir target_dir
+```
+
+这将执行`cp -r source_dir target_dir`命令，并在命令完成后发送通知消息，包含命令执行状态和用时。
+
 ## 打包分发
 
-使用PyInstaller打包为可执行文件：
+### 使用PyInstaller打包
 
 ```
 pyinstaller --onefile server.py
 pyinstaller --onefile send.py
+pyinstaller --onefile notify.py
 ```
 
 生成的可执行文件将位于dist目录下。
+
+### 打包后的使用方法
+
+#### 服务器
+```
+./server
+```
+
+#### 发送消息
+```
+./send "这是一条测试通知消息"
+```
+
+#### 配置服务器
+```
+./send config --ip 192.168.1.100 --port 5000
+```
+
+#### 执行命令并通知
+```
+./notify cp -r source_dir target_dir
+```
+
+### 添加到PATH
+
+为了更方便地使用这些工具，可以将它们添加到PATH环境变量中：
+
+```
+sudo cp dist/server dist/send dist/notify /usr/local/bin/
+```
+
+或者添加到用户目录：
+
+```
+mkdir -p ~/bin
+cp dist/server dist/send dist/notify ~/bin/
+```
+
+确保`~/bin`在你的PATH环境变量中：
+
+```
+echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
