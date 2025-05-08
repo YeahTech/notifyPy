@@ -30,19 +30,19 @@ python server.py
 
 ### 客户端使用
 
+#### 发送消息（默认方式）
+```
+python send.py "这是一条测试通知消息"
+```
+
 #### 配置服务器
 ```
-python client.py config --ip 192.168.1.100 --port 5000
+python send.py config --ip 192.168.1.100 --port 5000
 ```
 
 #### 查看当前配置
 ```
-python client.py config
-```
-
-#### 发送消息
-```
-python client.py send "这是一条测试通知消息"
+python send.py show
 ```
 
 ## 打包分发
@@ -51,7 +51,7 @@ python client.py send "这是一条测试通知消息"
 
 ```
 pyinstaller --onefile server.py
-pyinstaller --onefile client.py
+pyinstaller --onefile send.py
 ```
 
 生成的可执行文件将位于dist目录下。

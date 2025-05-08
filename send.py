@@ -139,37 +139,52 @@ class NotifyClient:
             return False
 
 def main():
-    parser = argparse.ArgumentParser(description='NotifyPy 客户端 - 发送通知到服务器')
-    subparsers = parser.add_subparsers(dest='command', help='命令')
+    parser = argparse.ArgumentParser(description='NotifyPy \u5ba2\u6237\u7aef - \u53d1\u9001\u901a\u77e5\u5230\u670d\u52a1\u5668')
     
-    # 发送消息命令
-    send_parser = subparsers.add_parser('send', help='发送通知消息')
-    send_parser.add_argument('message', help='要发送的消息内容')
+    # \u521b\u5efa\u5b50\u547d\u4ee4\u89e3\u6790\u5668
+    subparsers = parser.add_subparsers(dest='command')
     
-    # 配置命令
-    config_parser = subparsers.add_parser('config', help='配置服务器设置')
-    config_parser.add_argument('--ip', help='服务器IP地址')
-    config_parser.add_argument('--port', type=int, help='服务器端口')
+    # \u914d\u7f6e\u547d\u4ee4
+    config_parser = subparsers.add_parser('config', help='\u914d\u7f6e\u670d\u52a1\u5668\u8bbe\u7f6e')
+    config_parser.add_argument('--ip', help='\u670d\u52a1\u5668IP\u5730\u5740')
+    config_parser.add_argument('--port', type=int, help='\u670d\u52a1\u5668\u7aef\u53e3')
     
-    # 解析参数
-    args = parser.parse_args()
+    # \u67e5\u770b\u914d\u7f6e\u547d\u4ee4
+    subparsers.add_parser('show', help='\u67e5\u770b\u5f53\u524d\u914d\u7f6e')
     
-    # 创建客户端
+    # \u53d1\u9001\u6d88\u606f\u547d\u4ee4
+    send_parser = subparsers.add_parser('send', help='\u53d1\u9001\u901a\u77e5\u6d88\u606f')
+    send_parser.add_argument('message', help='\u8981\u53d1\u9001\u7684\u6d88\u606f\u5185\u5bb9')
+    
+    # \u89e3\u6790\u53c2\u6570
+    if len(sys.argv) > 1 and sys.argv[1] not in ['config', 'show', 'send', '-h', '--help']:
+        # \u5982\u679c\u7b2c\u4e00\u4e2a\u53c2\u6570\u4e0d\u662f\u5df2\u77e5\u547d\u4ee4\uff0c\u5219\u5c06\u5176\u89c6\u4e3a\u6d88\u606f\u5185\u5bb9
+        args = parser.parse_args(['send'] + sys.argv[1:])
+    else:
+        args = parser.parse_args()
+    
+    # \u521b\u5efa\u5ba2\u6237\u7aef
     client = NotifyClient()
     
-    # 根据命令执行操作
-    if args.command == 'send':
-        if client.send_message(args.message):
-            sys.exit(0)
-        else:
-            sys.exit(1)
-    elif args.command == 'config':
+    # \u6839\u636e\u547d\u4ee4\u6267\u884c\u64cd\u4f5c
+    if args.command == 'config':
+        # \u914d\u7f6e\u547d\u4ee4
         if client.configure(args.ip, args.port):
             sys.exit(0)
         else:
             sys.exit(1)
+    elif args.command == 'show':
+        # \u663e\u793a\u5f53\u524d\u914d\u7f6e
+        client.configure()  # \u4e0d\u4f20\u53c2\u6570\u5c31\u662f\u663e\u793a\u914d\u7f6e
+        sys.exit(0)
+    elif args.command == 'send':
+        # \u53d1\u9001\u6d88\u606f
+        if client.send_message(args.message):
+            sys.exit(0)
+        else:
+            sys.exit(1)
     else:
-        # 如果没有提供命令，显示帮助
+        # \u5982\u679c\u6ca1\u6709\u63d0\u4f9b\u4efb\u4f55\u53c2\u6570\uff0c\u663e\u793a\u5e2e\u52a9
         parser.print_help()
         sys.exit(0)
 
